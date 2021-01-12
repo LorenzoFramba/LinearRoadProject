@@ -109,11 +109,8 @@ public class exercise3 {
         SingleOutputStreamOperator<Tuple3<Long, Integer, Long>> second_Result = keyedStream2
                 .window(TumblingEventTimeWindows.of(Time.seconds(3600))).apply(new GetOutput());
 
-
-
-        sumTumblingEventTimeWindows.writeAsCsv(output1);
+        first_Result.writeAsCsv(output1);
         second_Result.writeAsCsv(output2);
-
 
         // execute program
         env.execute("Exercise3");
