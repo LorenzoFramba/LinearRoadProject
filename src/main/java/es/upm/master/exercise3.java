@@ -38,16 +38,18 @@ public class exercise3 {
         env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 
         String input = "";
-        String output = "";
+        String output1 = "";
+        String output2 = "";
         long time = 0L;
         int segment = 0;
 
         try {
             input = params.get("input");
-            output = params.get("output");
+            output1 = params.get("output1");
+            output2 = params.get("output2");
             segment = Integer.parseInt(params.get("segment"));
         } catch (IndexOutOfBoundsException e) {
-            System.out.println("Input file, output folder path and segment must be provided as argument to this program. Aborting...");
+            System.out.println("Input file, output folder paths and segment must be provided as argument to this program. Aborting...");
             return;
         }
 
@@ -87,10 +89,11 @@ public class exercise3 {
                         }
                 ).keyBy(1);
 
-        SingleOutputStreamOperator<Tuple4<Long, Long, Integer, Long>> sumTumblingEventTimeWindows = keyedStream
+        SingleOutputStreamOperator<Tuple3< Long, Integer, Long>> first_Result = keyedStream
                 .window(TumblingEventTimeWindows.of(Time.seconds(3600))).apply(new AverageSpeed());
 
-
+        SingleOutputStreamOperator<Tuple4<Long, Long, Integer, Long>> sumTumblingEventTimeWindows = keyedStream
+                .window(TumblingEventTimeWindows.of(Time.seconds(3600))).apply(new AverageSpeed2());
 
 
         KeyedStream<Tuple4<Long, Long, Integer, Long>, Tuple >  keyedStream2 = sumTumblingEventTimeWindows
@@ -101,30 +104,13 @@ public class exercise3 {
                                 return element.f0 * 1000;
                             }
                         }
-                ).keyBy(1);
+                ).keyBy(2);
 
-        SingleOutputStreamOperator<Tuple3<Long, Integer, Long>> output2 = keyedStream2
+        SingleOutputStreamOperator<Tuple3<Long, Integer, Long>> second_Result = keyedStream2
                 .window(TumblingEventTimeWindows.of(Time.seconds(3600))).apply(new GetOutput());
 
-
-
-
-
-
-        // emit result
-
-        sumTumblingEventTimeWindows.writeAsCsv(output);
-
-
-//        String fileExtension=".csv";
-//        if(output.contains(".")){
-//            output=output.split(".")[0];
-//            fileExtension=params.get("output").split(".")[1];
-//            }
-//        sumTumblingEventTimeWindows.writeAsCsv(output+"-out1"+fileExtension);
-//        output2.writeAsCsv(output+"-out2"+fileExtension);
-//
-
+        first_Result.writeAsCsv(output1);
+        second_Result.writeAsCsv(output2);
 
         // execute program
         env.execute("Exercise3");
@@ -132,6 +118,47 @@ public class exercise3 {
     }
 
     public static class AverageSpeed implements WindowFunction<Tuple8<Long, Long, Integer, Integer, Integer, Integer, Integer, Integer>,
+            Tuple3< Long, Integer, Long>, Tuple, TimeWindow> {
+        public void apply(Tuple tuple, TimeWindow timeWindow, Iterable<Tuple8<Long, Long, Integer, Integer, Integer, Integer, Integer, Integer>> input,
+                          Collector<Tuple3< Long, Integer, Long>> out) throws Exception {
+
+            Iterator<Tuple8<Long, Long, Integer, Integer, Integer, Integer, Integer, Integer>> iterator = input.iterator();
+            Tuple8<Long, Long, Integer, Integer, Integer, Integer, Integer, Integer> first = iterator.next();
+            Integer xWay = 0;
+            Long numberOfVehicles = 0L;
+            Long carID = 0L;
+            Long avgSpeed = 0L;
+            Integer speedCar = 0;
+            Long time = 0L;
+
+            if (first != null) {
+                time = first.f0;
+                carID = first.f1;
+                speedCar = first.f2;
+                numberOfVehicles = 1L;
+                avgSpeed = speedCar / numberOfVehicles;
+                xWay = first.f3;
+            }
+
+            while (iterator.hasNext()) {
+                Tuple8<Long, Long, Integer, Integer, Integer, Integer, Integer, Integer> next = iterator.next();
+                xWay = next.f3;
+                carID = next.f1;
+                time = next.f0;
+                speedCar += next.f2;
+                numberOfVehicles += 1;
+                avgSpeed = speedCar / numberOfVehicles;
+            }
+
+            out.collect(new Tuple3< Long, Integer, Long>( carID, xWay, avgSpeed));
+        }
+    }
+
+
+
+
+
+    public static class AverageSpeed2 implements WindowFunction<Tuple8<Long, Long, Integer, Integer, Integer, Integer, Integer, Integer>,
             Tuple4<Long, Long, Integer, Long>, Tuple, TimeWindow> {
         public void apply(Tuple tuple, TimeWindow timeWindow, Iterable<Tuple8<Long, Long, Integer, Integer, Integer, Integer, Integer, Integer>> input,
                           Collector<Tuple4<Long, Long, Integer, Long>> out) throws Exception {
@@ -168,11 +195,6 @@ public class exercise3 {
         }
     }
 
-
-
-
-
-
     public static class GetOutput implements WindowFunction<Tuple4<Long, Long, Integer, Long>,
             Tuple3<Long, Integer, Long>, Tuple, TimeWindow> {
         public void apply(Tuple tuple, TimeWindow timeWindow, Iterable<Tuple4<Long, Long, Integer, Long>> input,
@@ -181,10 +203,6 @@ public class exercise3 {
             Iterator<Tuple4<Long, Long, Integer, Long>> iterator = input.iterator();
             Tuple4<Long, Long, Integer, Long> first = iterator.next();
 
-            List<Long> CarsId = new ArrayList<Long>();
-            List<Long> AvgID = new ArrayList<Long>();
-
-            Long time = 0L;
             Integer xWay = 0;
             Long carID = 0L;
             Long avgSpeed = 0L;
@@ -193,27 +211,17 @@ public class exercise3 {
                 carID = first.f1;
                 xWay = first.f2;
                 avgSpeed = first.f3;
-
-                CarsId.add(carID);
-                AvgID.add(avgSpeed);
             }
             while (iterator.hasNext()) {
+
                 Tuple4<Long, Long, Integer, Long> next = iterator.next();
-
-                carID = next.f1;
+                if (next.f3 > avgSpeed){
+                    avgSpeed = next.f3;
+                    carID = next.f1;
+                }
                 xWay = next.f2;
-                avgSpeed = next.f3;
-
-                CarsId.add(carID);
-                AvgID.add(avgSpeed);
-
             }
-
-            Long maxAvgID = Collections.max(AvgID);
-            Integer maxIdx = AvgID.indexOf(maxAvgID);
-            Long maxCarID = CarsId.get(maxIdx);
-
-            out.collect(new Tuple3<Long, Integer, Long>(maxCarID, xWay, maxAvgID));
+            out.collect(new Tuple3<Long, Integer, Long>(carID, xWay, avgSpeed));
         }
     }
 }
