@@ -192,7 +192,7 @@ public class exercise2 {
 
             if (first != null) {
 
-                time = first.f0;
+                time = first.f0;            //prendi il tempo col minor risultato, e ordina la lista in base al tempo
                 xWay = first.f1;
                 avgSpeed = first.f2;
                 carID = first.f3;

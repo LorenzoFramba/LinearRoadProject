@@ -129,23 +129,21 @@ public class exercise3 {
             Long carID = 0L;
             Long avgSpeed = 0L;
             Integer speedCar = 0;
-            Long time = 0L;
 
             if (first != null) {
-                time = first.f0;
                 carID = first.f1;
                 speedCar = first.f2;
+                xWay = first.f3;
                 numberOfVehicles = 1L;
                 avgSpeed = speedCar / numberOfVehicles;
-                xWay = first.f3;
+
             }
 
             while (iterator.hasNext()) {
                 Tuple8<Long, Long, Integer, Integer, Integer, Integer, Integer, Integer> next = iterator.next();
-                xWay = next.f3;
                 carID = next.f1;
-                time = next.f0;
                 speedCar += next.f2;
+                xWay = next.f3;
                 numberOfVehicles += 1;
                 avgSpeed = speedCar / numberOfVehicles;
             }
@@ -176,21 +174,20 @@ public class exercise3 {
                 time = first.f0;
                 carID = first.f1;
                 speedCar = first.f2;
+                xWay = first.f3;
                 numberOfVehicles = 1L;
                 avgSpeed = speedCar / numberOfVehicles;
-                xWay = first.f3;
             }
 
             while (iterator.hasNext()) {
                 Tuple8<Long, Long, Integer, Integer, Integer, Integer, Integer, Integer> next = iterator.next();
-                xWay = next.f3;
                 carID = next.f1;
                 time = next.f0;
                 speedCar += next.f2;
+                xWay = next.f3;
                 numberOfVehicles += 1;
                 avgSpeed = speedCar / numberOfVehicles;
             }
-
             out.collect(new Tuple4<Long, Long, Integer, Long>(time, carID, xWay, avgSpeed));
         }
     }
@@ -216,10 +213,10 @@ public class exercise3 {
 
                 Tuple4<Long, Long, Integer, Long> next = iterator.next();
                 if (next.f3 > avgSpeed){
-                    avgSpeed = next.f3;
                     carID = next.f1;
+                    xWay = next.f2;
+                    avgSpeed = next.f3;
                 }
-                xWay = next.f2;
             }
             out.collect(new Tuple3<Long, Integer, Long>(carID, xWay, avgSpeed));
         }
