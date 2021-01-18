@@ -30,7 +30,7 @@ public class exercise2 {
 
         final ParameterTool params = ParameterTool.fromArgs(args);
 
-        // set up the execution environment
+        // Sets up the execution environment
 
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
@@ -40,11 +40,15 @@ public class exercise2 {
 
         String input = "";
         String output = "";
-        //int speed = 0;
+
+
         long time = 0L;
         int startSegment = 0;
         int endSegment = 0;
         int speed = 0;
+
+        // Gets all the user variables
+
         try {
             input = params.get("input");
             output = params.get("output");
@@ -61,6 +65,9 @@ public class exercise2 {
         final int endSegment2 = endSegment;
         final int innerSpeed = speed;
         DataStream<String> text = env.readTextFile(input);
+
+        // Filters out all observations that are go to different direction and are in different segments than the chosen ones
+        // Maps the input from string to correct type
 
         SingleOutputStreamOperator<Tuple8<Long, Long, Integer, Integer, Integer, Integer, Integer, Integer>> mapStream = text
                 .filter(new FilterFunction<String>() {
@@ -93,6 +100,8 @@ public class exercise2 {
                     }
                 });
 
+        // Transforms element timestamp from ms to s
+
         KeyedStream<Tuple8<Long, Long, Integer, Integer, Integer, Integer, Integer, Integer>, Tuple> keyedStream = mapStream
                 .assignTimestampsAndWatermarks(
                         new AscendingTimestampExtractor<Tuple8<Long, Long, Integer, Integer, Integer, Integer, Integer, Integer>>() {
@@ -103,6 +112,9 @@ public class exercise2 {
                         }
                 ).keyBy(1);
 
+        // Calculates the average speed of each car
+        // Filters out all observations with AvgSpeed lower or equal than requested.
+
         SingleOutputStreamOperator<Tuple4<Long, Integer,  Long, Long>> sumTumblingEventTimeWindows = keyedStream
                 .window(TumblingEventTimeWindows.of(Time.seconds(time))).apply(new AverageSpeed())
                 .filter(new FilterFunction<Tuple4<Long, Integer,  Long, Long>>() {
@@ -110,6 +122,8 @@ public class exercise2 {
                         return in.f2 > innerSpeed;
                     }
                 });
+
+        // Transforms element timestamp from ms to s
 
         KeyedStream<Tuple4<Long, Integer,  Long, Long>, Tuple> keyedStream2 = sumTumblingEventTimeWindows
                 .assignTimestampsAndWatermarks(
@@ -119,24 +133,26 @@ public class exercise2 {
                                 return element.f0 * 1000;
                             }
                         }
-                ).keyBy(1);;
+                ).keyBy(1);
+
+        // Gets resulting carsID, divided in lists, per each TimeFrame
 
         SingleOutputStreamOperator<Tuple4<Long, Integer,  Long, String>> sumTumblingEventTimeWindows2 = keyedStream2
                 .window(TumblingEventTimeWindows.of(Time.seconds(time))).apply(new GetOutput());
 
-
-
-        // emit result
+        // Emits result
 
         sumTumblingEventTimeWindows2.writeAsCsv(output);
 
 
-        // execute program
+        // Executes program
         env.execute("Exercise2");
 
     }
 
 
+    //Input Tuple8
+    //Output Tuple4
     public static class AverageSpeed implements WindowFunction<Tuple8<Long, Long, Integer, Integer, Integer, Integer, Integer, Integer>,
             Tuple4<Long, Integer,  Long, Long>, Tuple, TimeWindow> {
         public void apply(Tuple tuple, TimeWindow timeWindow, Iterable<Tuple8<Long, Long, Integer, Integer, Integer, Integer, Integer, Integer>> input,
@@ -174,6 +190,9 @@ public class exercise2 {
         }
     }
 
+
+    //Input Tuple4
+    //Output Tuple4
     public static class GetOutput implements WindowFunction<Tuple4<Long, Integer,  Long, Long>,
             Tuple4<Long, Integer,  Long, String>, Tuple, TimeWindow> {
         public void apply(Tuple tuple, TimeWindow timeWindow, Iterable<Tuple4<Long, Integer,  Long, Long>> input,
@@ -192,9 +211,8 @@ public class exercise2 {
 
             if (first != null) {
 
-                time = first.f0;            //prendi il tempo col minor risultato, e ordina la lista in base al tempo
+                time = first.f0;
                 xWay = first.f1;
-                avgSpeed = first.f2;
                 carID = first.f3;
                 numberOfVehicles = 1L;
                 CarsId.add(carID);
@@ -207,7 +225,6 @@ public class exercise2 {
                 if (next.f0 < time)
                     time = next.f0;
                 xWay = next.f1;
-                avgSpeed = next.f2;
                 carID = next.f3;
                 numberOfVehicles += 1;
                 CarsId.add(carID);
