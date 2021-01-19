@@ -1,11 +1,8 @@
 package es.upm.master;
 
 import org.apache.flink.api.common.functions.FilterFunction;
-import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.MapFunction;
-import org.apache.flink.api.java.tuple.Tuple;
-import org.apache.flink.api.java.tuple.Tuple4;
-import org.apache.flink.api.java.tuple.Tuple8;
+import org.apache.flink.api.java.tuple.*;
 import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -18,11 +15,9 @@ import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindo
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.util.Collector;
-import org.apache.flink.api.java.tuple.Tuple3;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Iterator;
-import java.util.List;
+
+import java.util.*;
+
 
 public class exercise3 {
     public static void main(String[] args) throws Exception {
@@ -89,14 +84,22 @@ public class exercise3 {
                         }
                 ).keyBy(1);
 
-        SingleOutputStreamOperator<Tuple3< Long, Integer, Long>> first_Result = keyedStream
+        SingleOutputStreamOperator<Tuple4<Long, Long, Integer, Long>> IntermediaryResult = keyedStream
                 .window(TumblingEventTimeWindows.of(Time.seconds(3600))).apply(new AverageSpeed());
 
-        SingleOutputStreamOperator<Tuple4<Long, Long, Integer, Long>> sumTumblingEventTimeWindows = keyedStream
-                .window(TumblingEventTimeWindows.of(Time.seconds(3600))).apply(new AverageSpeed2());
+        KeyedStream<Tuple4<Long, Long, Integer, Long>, Tuple> InterKey = IntermediaryResult.keyBy(1);
 
+        SingleOutputStreamOperator<Tuple3<Long, Integer, Long>> first_Result = InterKey
+                .map(new MapFunction<Tuple4<Long, Long, Integer, Long>, Tuple3<Long, Integer, Long>>() {
+                    @Override
+                    public Tuple3<Long, Integer, Long> map(Tuple4<Long, Long, Integer, Long> inter) throws Exception {
+                        return new Tuple3(inter.f1, inter.f2, inter.f3);
+                    }
+                });
 
-        KeyedStream<Tuple4<Long, Long, Integer, Long>, Tuple >  keyedStream2 = sumTumblingEventTimeWindows
+        first_Result.writeAsCsv(output1);
+
+        KeyedStream<Tuple4<Long, Long, Integer, Long>, Tuple >  keyedStream2 = IntermediaryResult
                 .assignTimestampsAndWatermarks(
                         new AscendingTimestampExtractor<Tuple4<Long, Long, Integer, Long>>() {
                             @Override
@@ -109,7 +112,7 @@ public class exercise3 {
         SingleOutputStreamOperator<Tuple3<Long, Integer, Long>> second_Result = keyedStream2
                 .window(TumblingEventTimeWindows.of(Time.seconds(3600))).apply(new GetOutput());
 
-        first_Result.writeAsCsv(output1);
+
         second_Result.writeAsCsv(output2);
 
         // execute program
@@ -117,48 +120,9 @@ public class exercise3 {
 
     }
 
+
+
     public static class AverageSpeed implements WindowFunction<Tuple8<Long, Long, Integer, Integer, Integer, Integer, Integer, Integer>,
-            Tuple3< Long, Integer, Long>, Tuple, TimeWindow> {
-        public void apply(Tuple tuple, TimeWindow timeWindow, Iterable<Tuple8<Long, Long, Integer, Integer, Integer, Integer, Integer, Integer>> input,
-                          Collector<Tuple3< Long, Integer, Long>> out) throws Exception {
-
-            Iterator<Tuple8<Long, Long, Integer, Integer, Integer, Integer, Integer, Integer>> iterator = input.iterator();
-            Tuple8<Long, Long, Integer, Integer, Integer, Integer, Integer, Integer> first = iterator.next();
-            Integer xWay = 0;
-            Long numberOfVehicles = 0L;
-            Long carID = 0L;
-            Long avgSpeed = 0L;
-            Integer speedCar = 0;
-            Long time = 0L;
-
-            if (first != null) {
-                time = first.f0;
-                carID = first.f1;
-                speedCar = first.f2;
-                numberOfVehicles = 1L;
-                avgSpeed = speedCar / numberOfVehicles;
-                xWay = first.f3;
-            }
-
-            while (iterator.hasNext()) {
-                Tuple8<Long, Long, Integer, Integer, Integer, Integer, Integer, Integer> next = iterator.next();
-                xWay = next.f3;
-                carID = next.f1;
-                time = next.f0;
-                speedCar += next.f2;
-                numberOfVehicles += 1;
-                avgSpeed = speedCar / numberOfVehicles;
-            }
-
-            out.collect(new Tuple3< Long, Integer, Long>( carID, xWay, avgSpeed));
-        }
-    }
-
-
-
-
-
-    public static class AverageSpeed2 implements WindowFunction<Tuple8<Long, Long, Integer, Integer, Integer, Integer, Integer, Integer>,
             Tuple4<Long, Long, Integer, Long>, Tuple, TimeWindow> {
         public void apply(Tuple tuple, TimeWindow timeWindow, Iterable<Tuple8<Long, Long, Integer, Integer, Integer, Integer, Integer, Integer>> input,
                           Collector<Tuple4<Long, Long, Integer, Long>> out) throws Exception {
@@ -190,9 +154,10 @@ public class exercise3 {
                 numberOfVehicles += 1;
                 avgSpeed = speedCar / numberOfVehicles;
             }
-
             out.collect(new Tuple4<Long, Long, Integer, Long>(time, carID, xWay, avgSpeed));
         }
+
+
     }
 
     public static class GetOutput implements WindowFunction<Tuple4<Long, Long, Integer, Long>,
