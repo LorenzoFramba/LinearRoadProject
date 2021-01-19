@@ -141,7 +141,6 @@ public class exercise2 {
                 .window(TumblingEventTimeWindows.of(Time.seconds(time))).apply(new GetOutput());
 
         // Emits result
-
         sumTumblingEventTimeWindows2.writeAsCsv(output);
 
 
@@ -206,7 +205,6 @@ public class exercise2 {
             Long time = 0L;
             Integer xWay = 0;
             Long carID = 0L;
-            Long avgSpeed = 0L;
             String carList = "[ ";
 
             if (first != null) {
@@ -230,7 +228,7 @@ public class exercise2 {
                 CarsId.add(carID);
             }
 
-            //Collections.sort(CarsId);
+
             for(int i = 0; i < CarsId.size(); i++) {
                 carList += CarsId.get(i);
                 if (i != (CarsId.size() - 1)){

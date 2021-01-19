@@ -44,7 +44,6 @@ public class exercise1 {
             return;
         }
 
-
         DataStream<String> text = env.readTextFile(input);
 
         //filters out all observations that are not in exit lane
@@ -121,10 +120,10 @@ public class exercise1 {
                 numberOfVehicles = 1L;
             }
             while(iterator.hasNext()){
-                Tuple8<Long, Long, Integer, Integer, Integer, Integer, Integer, Integer> next = iterator.next();
+                iterator.next();
                 numberOfVehicles += 1;
             }
-            out.collect(new Tuple4<Long, Integer, Integer, Long>(time, xWay, exitLane,numberOfVehicles));
+            out.collect(new Tuple4<Long, Integer, Integer, Long>(time, xWay, exitLane, numberOfVehicles));
         }
     }
 }
